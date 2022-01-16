@@ -16,6 +16,9 @@ var createTask = function (taskTime, taskText) {
   // Append task elements to container row
   taskRow.append(timeEl, textEl, saveEl);
 
+  // Audit tasks when created
+  auditTask(taskRow);
+
   // Append the task row(s) to the container
   $('.container').append(taskRow);
   saveTasks();
@@ -33,7 +36,6 @@ $('.container').on('click', 'p', function () {
   // Save the current text in case the change isn't saved
   textInput.trigger('focus');
 });
-console.log(data);
 
 $('.container').on('click', '.fa-save', function () {
   if ($(this).siblings('textarea').length != 0) {
@@ -68,20 +70,43 @@ $('.container').on('blur', 'textarea', function () {
   }
 });
 
+var auditTask = function (taskEl) {
+  // Get hour from task element
+  var taskTime = $(taskEl).find('span').text().trim();
+
+  // Turn it back into a time string
+  var time = moment(taskTime, 'LT');
+
+  // Remove any old classes from the element
+  $(taskEl).removeClass('alert-danger alert-warning');
+
+  // Apply new class if task if near/over due date
+  if (moment().isAfter(time)) {
+    $(taskEl).addClass('alert-danger');
+  } else if (Math.abs(moment().diff(time, 'hours')) <= 1) {
+    $(taskEl).addClass('alert-warning');
+  } else {
+    $(taskEl).addClass('alert-success');
+  }
+};
+
+// Save tasks
 var saveTasks = function () {
   localStorage.setItem('tasks', JSON.stringify(tasks));
 };
 
-var saveTasks = function () {
-  localStorage.setItem('tasks', JSON.stringify(tasks));
-};
-
+// Load tasks
 var loadTasks = function () {
-  console.log(today);
+  // Set the date in the scheduler's header
   $('#currentDay').text(today.format('dddd, MMMM Do'));
   tasks = JSON.parse(localStorage.getItem('tasks'));
+  // console.log(moment('YYYY M D').diff(moment(tasks[0].time), 'days'));
+  var dateDiff = moment(moment(), 'YYYY-MM-DD').diff(
+    moment(tasks[0].time, 'YYYY-MM-DD'),
+    'days'
+  );
 
-  if (!tasks) {
+  if (!tasks || dateDiff >= 1) {
     tasks = [];
     for (var i = 6; i <= 18; i++) {
       tasks.push({ time: moment(i, ['HH']), text: '' });
@@ -93,3 +118,9 @@ var loadTasks = function () {
 };
 
 loadTasks();
+
+setInterval(function () {
+  $('.row').each(function (index, el) {
+    auditTask(el);
+  });
+}, 60000);
