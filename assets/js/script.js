@@ -4,13 +4,13 @@ var data;
 
 var createTask = function (taskTime, taskText) {
   // Create elements that make up an Event block
-  var taskRow = $('<div>').addClass('row no-gutters border-top border-bottom');
+  var taskRow = $('<div>').addClass('row');
   var timeEl = $('<span>')
-    .addClass('col-2 text-right pt-2 pr-2 border-right flex-fill')
+    .addClass('hour col-2 h-100')
     .text(moment(taskTime).format('h A'));
-  var textEl = $('<p>').addClass('col-8 p-2').text(taskText);
+  var textEl = $('<p>').addClass('description h-100 col-8 pt-2').text(taskText);
   var saveEl = $('<i>').addClass(
-    'fas fa-save fa-3x col-2 align-self-center text-center p-3 bg-info text-white'
+    'col-2 fas fa-save fa-2x h-100 text-center saveBtn pt-4'
   );
 
   // Append task elements to container row
@@ -27,11 +27,15 @@ var createTask = function (taskTime, taskText) {
 // Edit and save tasks
 // Task text was clicked
 $('.container').on('click', 'p', function () {
+  if ($(this).hasClass('past')) {
+    return;
+  }
+
   // Get the current text (if any)
   var text = $(this).text().trim();
   // Save it in case the change is canceled
   data = text;
-  var textInput = $('<textarea>').addClass('form-control col-8 p-2').val(text);
+  var textInput = $('<textarea>').addClass('form-control col-8').val(text);
   $(this).replaceWith(textInput);
   // Save the current text in case the change isn't saved
   textInput.trigger('focus');
@@ -48,8 +52,9 @@ $('.container').on('click', '.fa-save', function () {
     tasks[index].text = text;
     saveTasks();
 
-    var taskText = $('<p>').addClass('col-8 p-2').text(text);
+    var taskText = $('<p>').addClass('description h-100 col-8 pt-2').text(text);
     $(this).siblings('textarea').replaceWith(taskText);
+    auditTask(taskText.parent());
   } else {
     return;
   }
@@ -65,28 +70,31 @@ $('.container').on('blur', 'textarea', function () {
   } else {
     // The blur event was not caused by clicking the save button
     // do not save the changed text
-    var taskText = $('<p>').addClass('col-8 p-2').text(data);
+    var taskText = $('<p>').addClass('col-8 h-100 p-2 pt-2').text(data);
     $(this).replaceWith(taskText);
+    auditTask($(taskText).parent());
   }
 });
 
 var auditTask = function (taskEl) {
   // Get hour from task element
   var taskTime = $(taskEl).find('span').text().trim();
+  var taskText = $(taskEl).find('p');
 
   // Turn it back into a time string
-  var time = moment(taskTime, 'LT');
+  var time = parseInt(moment(taskTime, 'h A').format('HH'));
+  var now = moment().hour();
 
   // Remove any old classes from the element
-  $(taskEl).removeClass('alert-danger alert-warning');
+  $(taskText).removeClass('past present future');
 
   // Apply new class if task if near/over due date
-  if (moment().isAfter(time)) {
-    $(taskEl).addClass('alert-danger');
-  } else if (Math.abs(moment().diff(time, 'hours')) <= 1) {
-    $(taskEl).addClass('alert-warning');
+  if (time < now) {
+    $(taskText).addClass('past');
+  } else if (time === now) {
+    $(taskText).addClass('present');
   } else {
-    $(taskEl).addClass('alert-success');
+    $(taskText).addClass('future');
   }
 };
 
@@ -101,10 +109,13 @@ var loadTasks = function () {
   $('#currentDay').text(today.format('dddd, MMMM Do'));
   tasks = JSON.parse(localStorage.getItem('tasks'));
   // console.log(moment('YYYY M D').diff(moment(tasks[0].time), 'days'));
-  var dateDiff = moment(moment(), 'YYYY-MM-DD').diff(
-    moment(tasks[0].time, 'YYYY-MM-DD'),
-    'days'
-  );
+  var dateDiff = 0;
+  if (tasks) {
+    dateDiff = moment(moment(), 'YYYY-MM-DD').diff(
+      moment(tasks[0].time, 'YYYY-MM-DD'),
+      'days'
+    );
+  }
 
   if (!tasks || dateDiff >= 1) {
     tasks = [];
@@ -123,4 +134,4 @@ setInterval(function () {
   $('.row').each(function (index, el) {
     auditTask(el);
   });
-}, 60000);
+}, 600000);
